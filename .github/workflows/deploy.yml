@@ -21,4 +21,4 @@ jobs:
         run: ./gradlew clean build publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MARIELLA_RELEASE_NAME: ${{ github.event.release.name }}
+          ITSF_RANKING_RELEASE_NAME: ${{ github.event.release.name }}

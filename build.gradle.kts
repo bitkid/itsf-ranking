@@ -93,7 +93,7 @@ publishing {
 
 @Suppress("UnstableApiUsage")
 mavenPublishing {
-    coordinates("com.bitkid", project.name, System.getenv("MARIELLA_RELEASE_NAME") ?: "1.0-SNAPSHOT")
+    coordinates("com.bitkid", project.name, System.getenv("ITSF_RANKING_RELEASE_NAME") ?: "1.0-SNAPSHOT")
     pom {
         name = "ITSF ranking"
         description = "Simple helper app for handling rankings on the ITSF homepage"
