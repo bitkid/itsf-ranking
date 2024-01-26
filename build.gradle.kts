@@ -15,7 +15,7 @@ plugins {
 }
 
 application {
-    mainClass.set("com.bitkid.foostats.ranking.ITSFRankingApp")
+    mainClass.set("com.bitkid.itsfranking.ITSFRankingApp")
 }
 
 java {
