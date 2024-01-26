@@ -1,4 +1,4 @@
-package com.bitkid.foostats.ranking
+package com.bitkid.itsfranking
 
 import org.apache.commons.codec.language.bm.NameType
 import org.apache.commons.codec.language.bm.PhoneticEngine

@@ -1,4 +1,4 @@
-package com.bitkid.foostats.ranking
+package com.bitkid.itsfranking
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue

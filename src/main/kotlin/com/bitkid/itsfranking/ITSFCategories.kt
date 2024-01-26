@@ -1,4 +1,4 @@
-package com.bitkid.foostats.ranking
+package com.bitkid.itsfranking
 
 data class Category(val name: String, val targetAudience: String, val system: Int = 1)
 

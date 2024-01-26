@@ -1,4 +1,4 @@
-package com.bitkid.foostats.ranking
+package com.bitkid.itsfranking
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -121,7 +121,7 @@ object ITSFRankingApp {
 
 
     private fun createPanel(frame: JFrame): JPanel {
-        this.jFrame = frame
+        jFrame = frame
         val panel = JPanel(MigLayout("wrap 2"))
 
         panel.add(JLabel("Load ITSF Rankings"))

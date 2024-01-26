@@ -1,6 +1,7 @@
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.net.URI
 
 val jacksonVersion = "2.16.1"
 val jUnitVersion = "5.10.1"
@@ -10,6 +11,7 @@ plugins {
     kotlin("jvm") version "1.9.22"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("com.github.ben-manes.versions") version "0.51.0"
+    id("com.vanniktech.maven.publish") version "0.27.0"
 }
 
 application {
@@ -73,4 +75,28 @@ tasks.withType<ShadowJar> {
     archiveBaseName.set("itsf-ranking")
     archiveClassifier.set("all")
     archiveVersion.set("0.1")
+}
+
+
+publishing {
+    repositories {
+        maven {
+            name = "githubPackages"
+            url = URI("https://maven.pkg.github.com/bitkid/itsf-ranking")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}
+
+@Suppress("UnstableApiUsage")
+mavenPublishing {
+    coordinates("com.bitkid", project.name, System.getenv("MARIELLA_RELEASE_NAME") ?: "1.0-SNAPSHOT")
+    pom {
+        name = "ITSF ranking"
+        description = "Simple helper app for handling rankings on the ITSF homepage"
+        url = "https://github.com/bitkid/itsf-ranking/"
+    }
 }
