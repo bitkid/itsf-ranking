@@ -1,8 +1,11 @@
 package com.bitkid.itsfranking
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import org.apache.commons.codec.language.bm.NameType
 import org.apache.commons.codec.language.bm.PhoneticEngine
 import org.apache.commons.codec.language.bm.RuleType
+import java.io.File
 
 data class ITSFRank(val rank: Int, val points: Int)
 
@@ -14,6 +17,13 @@ data class ITSFPlayer(
 )
 
 class ITSFPlayers(rankings: List<Ranking>) {
+
+    companion object {
+        fun readFromFile(file: File): ITSFPlayers {
+            val ranking = jacksonObjectMapper().readValue<List<Ranking>>(file)
+            return ITSFPlayers(ranking)
+        }
+    }
 
     private val engine = PhoneticEngine(NameType.GENERIC, RuleType.APPROX, true)
 

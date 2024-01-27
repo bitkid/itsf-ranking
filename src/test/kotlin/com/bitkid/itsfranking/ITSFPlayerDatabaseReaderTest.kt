@@ -1,7 +1,6 @@
 package com.bitkid.itsfranking
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import kotlinx.coroutines.runBlocking
 import org.apache.commons.codec.language.bm.NameType
 import org.apache.commons.codec.language.bm.PhoneticEngine
@@ -39,8 +38,8 @@ class ITSFPlayerDatabaseReaderTest {
     fun `parse rankings`() {
         val resource = ITSFPlayerDatabaseReaderTest::class.java.getResource("/itsfFullRankings_2023.json")
         val data = File(resource!!.toURI())
-        val ranking = jacksonObjectMapper().readValue<List<Ranking>>(data)
-        val players = ITSFPlayers(ranking)
+        val players = ITSFPlayers.readFromFile(data)
+
         expectThat(players.players["84000895"]!!.name).isEqualTo("SPREDEMAN Tony")
         expectThat(players.find("sprede")).hasSize(2)
 
@@ -50,5 +49,19 @@ class ITSFPlayerDatabaseReaderTest {
 
         expectThat(players.matchesName(engine.encode(simon.name), engine.encode("varos").split("|"))).isTrue()
         expectThat(players.find("varos").size).isGreaterThan(1)
+    }
+
+    data class PlayerWithResult(val playerName: String, val results: List<ITSFPlayer>)
+
+    @Test
+    fun `try matching`() {
+        val resource = ITSFPlayerDatabaseReaderTest::class.java.getResource("/itsfFullRankings_2023.json")
+        val data = File(resource!!.toURI())
+        val players = ITSFPlayers.readFromFile(data)
+
+        val tournamentPlayers = File(ITSFPlayerDatabaseReaderTest::class.java.getResource("/test_tournament.csv")!!.toURI()).readLines(Charsets.ISO_8859_1)
+        val playersWithResult = tournamentPlayers.takeLast(tournamentPlayers.size - 1).map { PlayerWithResult(it, players.find(it)) }
+        expectThat(playersWithResult.filter { it.results.isEmpty() }).hasSize(4)
+        expectThat(playersWithResult.filter { it.results.size > 1 }).hasSize(0)
     }
 }
