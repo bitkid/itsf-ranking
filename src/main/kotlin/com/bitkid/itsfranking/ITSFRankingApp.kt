@@ -13,7 +13,7 @@ import javax.swing.*
 import javax.swing.table.DefaultTableModel
 
 
-private class RankingButtonPanel(clicked: (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0")) {
+private class RankingButtonPanel(clicked: (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap ${allCategories.size}")) {
     init {
         allCategories.forEach { c ->
             add(JButton(c.name).apply {
@@ -25,13 +25,44 @@ private class RankingButtonPanel(clicked: (String) -> Unit) : JPanel(MigLayout("
     }
 }
 
+@OptIn(DelicateCoroutinesApi::class)
+private class LoadPanel(private val jFrame: JFrame, private val load: suspend (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap 2")) {
+    init {
+        val tourField = JTextField(4)
+        tourField.text = "2023"
+        val button = JButton("Load").apply {
+            addActionListener {
+                isEnabled = false
+                tourField.isEnabled = false
+                GlobalScope.launch(Dispatchers.Swing) {
+                    try {
+                        load(tourField.text)
+                        background = Color.GREEN
+                    } catch (e: Exception) {
+                        background = Color.RED
+                        isEnabled = true
+                        tourField.isEnabled = true
+                        JOptionPane.showMessageDialog(
+                            jFrame,
+                            "Fetching data failed! \n ${e.stackTraceToString()}",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                        )
+                    }
+                }
+            }
+        }
+        add(tourField)
+        add(button, "growx")
+    }
+}
+
 private class ResultTableModel(columns: List<String>) : DefaultTableModel(Vector(columns), 0) {
     override fun isCellEditable(row: Int, column: Int): Boolean {
         return false
     }
 }
 
-@OptIn(DelicateCoroutinesApi::class)
 object ITSFRankingApp {
     private lateinit var itsfPlayers: ITSFPlayers
     private lateinit var jFrame: JFrame
@@ -78,9 +109,9 @@ object ITSFRankingApp {
         return model
     }
 
-    private suspend fun loadRanking() {
+    private suspend fun loadRanking(s: String) {
         // val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
-        val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readRankings()
+        val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
         itsfPlayers = ITSFPlayers(rankings)
     }
 
@@ -125,26 +156,7 @@ object ITSFRankingApp {
         val panel = JPanel(MigLayout("wrap 2"))
 
         panel.add(JLabel("Load ITSF Rankings"))
-        panel.add(JButton("Load").apply {
-            addActionListener {
-                isEnabled = false
-                GlobalScope.launch(Dispatchers.Swing) {
-                    try {
-                        loadRanking()
-                        background = Color.GREEN
-                    } catch (e: Exception) {
-                        background = Color.RED
-                        isEnabled = true
-                        JOptionPane.showMessageDialog(
-                            jFrame,
-                            "Fetching data failed! \n ${e.stackTraceToString()}",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                        )
-                    }
-                }
-            }
-        }, "growx")
+        panel.add(LoadPanel(jFrame) { loadRanking(it) }, "growx")
 
         val searchAction: Action = object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent) {
