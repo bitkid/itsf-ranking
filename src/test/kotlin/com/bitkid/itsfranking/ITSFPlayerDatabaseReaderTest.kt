@@ -53,14 +53,33 @@ class ITSFPlayerDatabaseReaderTest {
 
 
     @Test
-    fun `try matching`() {
+    fun `try matching singles`() {
         val resource = ITSFPlayerDatabaseReaderTest::class.java.getResource("/itsfFullRankings_2023.json")
         val data = File(resource!!.toURI())
         val players = ITSFPlayers.readFromFile(data)
 
         val tournamentPlayers = File(ITSFPlayerDatabaseReaderTest::class.java.getResource("/test_tournament.csv")!!.toURI()).readLines(Charsets.ISO_8859_1)
-        val playersWithResult = tournamentPlayers.takeLast(tournamentPlayers.size - 1).map { PlayerWithResult(it, players.find(it)) }
+        val playersWithResult = tournamentPlayers.takeLast(tournamentPlayers.size - 1).map { PlayerNameWithResults(it, players.find(it)) }
         expectThat(playersWithResult.filter { it.results.isEmpty() }).hasSize(4)
         expectThat(playersWithResult.filter { it.results.size > 1 }).hasSize(0)
     }
+
+    @Test
+    fun `try matching doubles`() {
+        val resource = ITSFPlayerDatabaseReaderTest::class.java.getResource("/itsfFullRankings_2023.json")
+        val data = File(resource!!.toURI())
+        val players = ITSFPlayers.readFromFile(data)
+
+        val tournamentPlayers = File(ITSFPlayerDatabaseReaderTest::class.java.getResource("/test_tournament_mixed.csv")!!.toURI()).readLines(Charsets.UTF_8)
+        val playersWithResult = tournamentPlayers.takeLast(tournamentPlayers.size - 1).map {
+            val playerNames = it.split(";")
+            require(playerNames.size == 2) { "expect exactly 2 players per line" }
+            val player1 = PlayerNameWithResults(playerNames[0], players.find(playerNames[0]))
+            val player2 = PlayerNameWithResults(playerNames[1], players.find(playerNames[1]))
+            TwoPlayersWithResults(player1, player2)
+        }
+
+    }
+
+
 }

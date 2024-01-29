@@ -113,7 +113,8 @@ object ITSFRankingApp {
 
     private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
 
-    private fun emptyListResultModelSingles() = ResultTableModel(listOf("name", "country", "points", "status"))
+    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "country", "points", "status"))
+    private fun emptyListResultModelDoubles() = ResultTableModel(listOf("player1", "player2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"))
 
     private fun showRanking(category: String) {
         if (checkRankingLoaded()) {
@@ -144,8 +145,8 @@ object ITSFRankingApp {
     }
 
     private suspend fun loadRanking(s: String) {
-        //val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
-        val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
+        val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
+        //val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
         itsfPlayers = ITSFPlayers(rankings)
     }
 
@@ -177,20 +178,61 @@ object ITSFRankingApp {
         GlobalScope.launch(Dispatchers.Swing) {
             val lines = file.readLines(charset)
             val data = lines.takeLast(lines.size - 1)
-            val model = emptyListResultModelSingles()
-            data.map { PlayerWithResult(it, itsfPlayers.find(it)) }.forEach {
-                when (it.results.size) {
-                    0 -> model.addRow(listOf(it.playerName, null, null, "NOT_FOUND"))
-                    1 -> {
-                        val player = it.results.single()
-                        model.addRow(listOf(it.playerName, player.country, player.rankings[category]?.points, "OK"))
-                    }
-
-                    else -> model.addRow(listOf(it.playerName, null, null, "MULTIPLE_MATCHES"))
-                }
-            }
+            val model = if (category.type == CompetitionType.SINGLES) createModelForSinglePlayer(data, category) else createModelForTeam(data, category)
             jTable.model = model
         }
+    }
+
+    private fun createModelForTeam(data: List<String>, category: Category): ResultTableModel {
+        val model = emptyListResultModelDoubles()
+        data.map {
+            val playerNames = it.split(";")
+            require(playerNames.size == 2) { "expect exactly 2 players per line" }
+
+            val player1Name = playerNames[0].trim()
+            val results = itsfPlayers.find(player1Name)
+            val player1 = PlayerNameWithResults(playerNames[0], results)
+
+            val player2Name = playerNames[1].trim()
+            val results2 = itsfPlayers.find(player2Name)
+            val player2 = PlayerNameWithResults(playerNames[1], results2)
+
+            TwoPlayersWithResults(player1, player2)
+        }.forEach {
+            val list = mutableListOf<String?>(it.player1.playerName, it.player2.playerName)
+            addPlayerToRow(list, category, it.player1)
+            addPlayerToRow(list, category, it.player2)
+            model.addRow(list)
+        }
+        return model
+    }
+
+    private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults) {
+        when (playerNameWithResults.results.size) {
+            0 -> list.addAll(listOf(null, null, "NOT_FOUND"))
+            1 -> {
+                val player = playerNameWithResults.results.single()
+                list.addAll(listOf(player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+            }
+
+            else -> list.addAll(listOf(null, null, "MULTIPLE_MATCHES"))
+        }
+    }
+
+    private fun createModelForSinglePlayer(data: List<String>, category: Category): ResultTableModel {
+        val model = emptyListResultModelSingles()
+        data.map { PlayerNameWithResults(it, itsfPlayers.find(it)) }.forEach {
+            when (it.results.size) {
+                0 -> model.addRow(listOf(it.playerName, null, null, "NOT_FOUND"))
+                1 -> {
+                    val player = it.results.single()
+                    model.addRow(listOf(it.playerName, player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                }
+
+                else -> model.addRow(listOf(it.playerName, null, null, "MULTIPLE_MATCHES"))
+            }
+        }
+        return model
     }
 
     private fun addPlayerToModel(model: ResultTableModel, it: ITSFPlayer) {

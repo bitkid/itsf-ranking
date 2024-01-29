@@ -16,7 +16,8 @@ data class ITSFPlayer(
     val rankings: Map<Category, ITSFRank>
 )
 
-data class PlayerWithResult(val playerName: String, val results: List<ITSFPlayer>)
+data class PlayerNameWithResults(val playerName: String, val results: List<ITSFPlayer>)
+data class TwoPlayersWithResults(val player1: PlayerNameWithResults, val player2: PlayerNameWithResults)
 
 
 class ITSFPlayers(rankings: List<Ranking>) {
@@ -62,6 +63,11 @@ class ITSFPlayers(rankings: List<Ranking>) {
     }
 
     fun find(search: String): List<ITSFPlayer> {
+        val res = findPlayer(search)
+        return res.ifEmpty { findPlayer(search.split(" ").reversed().joinToString(" ")) }
+    }
+
+    private fun findPlayer(search: String): List<ITSFPlayer> {
         val normalSearch = players.filter { it.value.name.contains(search, true) }.map { it.value }
         if (normalSearch.isEmpty()) {
             val enc = engine.encode(search).split("|")
