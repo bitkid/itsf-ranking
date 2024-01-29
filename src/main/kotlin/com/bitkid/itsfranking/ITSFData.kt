@@ -16,6 +16,9 @@ data class ITSFPlayer(
     val rankings: Map<Category, ITSFRank>
 )
 
+data class PlayerWithResult(val playerName: String, val results: List<ITSFPlayer>)
+
+
 class ITSFPlayers(rankings: List<Ranking>) {
 
     companion object {

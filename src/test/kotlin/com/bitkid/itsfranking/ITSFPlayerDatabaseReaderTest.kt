@@ -30,7 +30,7 @@ class ITSFPlayerDatabaseReaderTest {
         val resource = ITSFPlayerDatabaseReaderTest::class.java.getResource("/ranking_singles_male.html")
         val data = File(resource!!.toURI()).readText()
         val dataParsed =
-            ITSFPlayerDatabaseReader(topXPlayers = 2000).getPlayersMap(CategoryAndPage(openSingles, data, "url"))
+            ITSFPlayerDatabaseReader(topXPlayers = 2000).getPlayersMap(CategoryAndPage(Categories.openSingles, data, "url"))
         println(dataParsed)
     }
 
@@ -51,7 +51,6 @@ class ITSFPlayerDatabaseReaderTest {
         expectThat(players.find("varos").size).isGreaterThan(1)
     }
 
-    data class PlayerWithResult(val playerName: String, val results: List<ITSFPlayer>)
 
     @Test
     fun `try matching`() {

@@ -8,14 +8,16 @@ import kotlinx.coroutines.swing.Swing
 import net.miginfocom.swing.MigLayout
 import java.awt.Color
 import java.awt.event.ActionEvent
+import java.io.File
+import java.nio.charset.Charset
 import java.util.*
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
 
 
-private class RankingButtonPanel(clicked: (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap ${allCategories.size}")) {
+private class RankingButtonPanel(clicked: (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap ${Categories.all.size}")) {
     init {
-        allCategories.forEach { c ->
+        Categories.all.forEach { c ->
             add(JButton(c.name).apply {
                 addActionListener {
                     clicked(c.targetAudience)
@@ -57,12 +59,43 @@ private class LoadPanel(private val jFrame: JFrame, private val load: suspend (S
     }
 }
 
+private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
+    init {
+        val charsetSelect = JComboBox(listOf("UTF-8", "ISO-8859-1", "WINDOWS-1252").toTypedArray())
+        charsetSelect.selectedIndex = 2
+
+        val category = JComboBox(Categories.all.map { it.name }.toTypedArray())
+        category.selectedIndex = 0
+
+        val button = JButton("Open File").apply {
+            addActionListener {
+                if (isLoaded()) {
+                    val fileChooser = JFileChooser(File("."))
+                    fileChooser.isMultiSelectionEnabled = false
+                    fileChooser.fileSelectionMode = JFileChooser.FILES_ONLY
+                    val r = fileChooser.showOpenDialog(jFrame)
+                    if (r == JFileChooser.APPROVE_OPTION) {
+                        val file = fileChooser.selectedFile
+                        load(file, Charset.forName(charsetSelect.selectedItem!!.toString()), Categories.all.single { it.name == category.selectedItem!! })
+                    }
+                }
+            }
+        }
+        add(JLabel("Category:"))
+        add(category, "growx")
+        add(JLabel("Charset:"))
+        add(charsetSelect, "growx")
+        add(button, "growx")
+    }
+}
+
 private class ResultTableModel(columns: List<String>) : DefaultTableModel(Vector(columns), 0) {
     override fun isCellEditable(row: Int, column: Int): Boolean {
         return false
     }
 }
 
+@DelicateCoroutinesApi
 object ITSFRankingApp {
     private lateinit var itsfPlayers: ITSFPlayers
     private lateinit var jFrame: JFrame
@@ -76,20 +109,21 @@ object ITSFRankingApp {
     }
 
 
-    private fun emptyModel() = ResultTableModel(listOf("itsf no.", "name") + allCategories.map { it.targetAudience })
+    private fun emptyModel() = ResultTableModel(listOf("itsf no.", "name") + Categories.all.map { it.targetAudience })
 
     private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
 
+    private fun emptyListResultModelSingles() = ResultTableModel(listOf("name", "country", "points", "status"))
+
     private fun showRanking(category: String) {
         if (checkRankingLoaded()) {
-            val cat = allCategories.single { it.targetAudience == category }
+            val cat = Categories.all.single { it.targetAudience == category }
             val players = itsfPlayers.getRanking(cat)
             val m = emptyRankingModel()
             players.forEach {
                 val itsfRank = it.rankings.getValue(cat)
-                val props =
-                    listOf(it.licenseNumber, it.name, it.country, itsfRank.rank.toString(), itsfRank.points.toString())
-                m.addRow(props.toTypedArray())
+                val props = listOf(it.licenseNumber, it.name, it.country, itsfRank.rank.toString(), itsfRank.points.toString())
+                m.addRow(props)
             }
             jTable.model = m
         }
@@ -110,7 +144,7 @@ object ITSFRankingApp {
     }
 
     private suspend fun loadRanking(s: String) {
-        // val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
+        //val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
         val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
         itsfPlayers = ITSFPlayers(rankings)
     }
@@ -138,8 +172,29 @@ object ITSFRankingApp {
         }
     }
 
+
+    private fun loadFile(file: File, charset: Charset, category: Category) {
+        GlobalScope.launch(Dispatchers.Swing) {
+            val lines = file.readLines(charset)
+            val data = lines.takeLast(lines.size - 1)
+            val model = emptyListResultModelSingles()
+            data.map { PlayerWithResult(it, itsfPlayers.find(it)) }.forEach {
+                when (it.results.size) {
+                    0 -> model.addRow(listOf(it.playerName, null, null, "NOT_FOUND"))
+                    1 -> {
+                        val player = it.results.single()
+                        model.addRow(listOf(it.playerName, player.country, player.rankings[category]?.points, "OK"))
+                    }
+
+                    else -> model.addRow(listOf(it.playerName, null, null, "MULTIPLE_MATCHES"))
+                }
+            }
+            jTable.model = model
+        }
+    }
+
     private fun addPlayerToModel(model: ResultTableModel, it: ITSFPlayer) {
-        val ranks = allCategories.map { c ->
+        val ranks = Categories.all.map { c ->
             val r = it.rankings[c]
             if (r == null)
                 ""
@@ -147,7 +202,7 @@ object ITSFRankingApp {
                 "${r.rank} (${r.points})"
         }
         val all = listOf(it.licenseNumber, it.name) + ranks
-        model.addRow(all.toTypedArray())
+        model.addRow(all)
     }
 
 
@@ -185,6 +240,9 @@ object ITSFRankingApp {
         panel.add(JPanel())
         panel.add(JButton("Search").apply { addActionListener(searchLicenseAction) }, "growx")
 
+        panel.add(JLabel("Upload player list"))
+        panel.add(LoadCsvPanel(jFrame, ::loadFile, ::checkRankingLoaded), "growx")
+
         panel.add(JLabel("Results"))
         panel.add(JScrollPane(jTable), "growx, height :400:")
 
@@ -206,5 +264,9 @@ object ITSFRankingApp {
             frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
             frame.isVisible = true
         }
+    }
+
+    private fun ResultTableModel.addRow(data: List<*>) {
+        addRow(data.toTypedArray())
     }
 }
