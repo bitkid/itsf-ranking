@@ -34,13 +34,16 @@ private class LoadPanel(private val jFrame: JFrame, private val load: suspend (S
         tourField.text = "2023"
         val button = JButton("Load").apply {
             addActionListener {
+                val jDialog = showLoadingDialog(jFrame)
                 isEnabled = false
                 tourField.isEnabled = false
-                GlobalScope.launch(Dispatchers.Swing) {
+
+                GlobalScope.launch(Dispatchers.IO) {
                     try {
                         load(tourField.text)
                         background = Color.GREEN
                     } catch (e: Exception) {
+                        jDialog.dispose()
                         background = Color.RED
                         isEnabled = true
                         tourField.isEnabled = true
@@ -50,6 +53,8 @@ private class LoadPanel(private val jFrame: JFrame, private val load: suspend (S
                             "Error",
                             JOptionPane.ERROR_MESSAGE
                         )
+                    } finally {
+                        jDialog.dispose()
                     }
                 }
             }
@@ -59,6 +64,24 @@ private class LoadPanel(private val jFrame: JFrame, private val load: suspend (S
     }
 }
 
+@OptIn(DelicateCoroutinesApi::class)
+private fun showLoadingDialog(jFrame: JFrame): JDialog {
+    val jDialog = JDialog(jFrame, "loading", true)
+    jDialog.contentPane.layout = MigLayout()
+    jDialog.isUndecorated = true
+    jDialog.contentPane.add(JLabel(" LOADING ...").apply {
+        border = BorderFactory.createMatteBorder(1, 1, 1, 1, Color.black)
+    }, "width :100:")
+    jDialog.defaultCloseOperation = JDialog.DO_NOTHING_ON_CLOSE
+    jDialog.pack()
+    jDialog.setLocationRelativeTo(jFrame)
+    GlobalScope.launch(Dispatchers.Swing) {
+        jDialog.isVisible = true
+    }
+    return jDialog
+}
+
+@DelicateCoroutinesApi
 private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
     init {
         val charsetSelect = JComboBox(listOf("UTF-8", "ISO-8859-1", "WINDOWS-1252").toTypedArray())
@@ -75,8 +98,23 @@ private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, 
                     fileChooser.fileSelectionMode = JFileChooser.FILES_ONLY
                     val r = fileChooser.showOpenDialog(jFrame)
                     if (r == JFileChooser.APPROVE_OPTION) {
-                        val file = fileChooser.selectedFile
-                        load(file, Charset.forName(charsetSelect.selectedItem!!.toString()), Categories.all.single { it.name == category.selectedItem!! })
+                        val dialog = showLoadingDialog(jFrame)
+                        GlobalScope.launch(Dispatchers.IO) {
+                            try {
+                                val file = fileChooser.selectedFile
+                                load(file, Charset.forName(charsetSelect.selectedItem!!.toString()), Categories.all.single { it.name == category.selectedItem!! })
+                            } catch (e: Exception) {
+                                dialog.dispose()
+                                JOptionPane.showMessageDialog(
+                                    jFrame,
+                                    "Loading CSV list failed! \n ${e.stackTraceToString()}",
+                                    "Error",
+                                    JOptionPane.ERROR_MESSAGE
+                                )
+                            } finally {
+                                dialog.dispose()
+                            }
+                        }
                     }
                 }
             }
@@ -175,12 +213,10 @@ object ITSFRankingApp {
 
 
     private fun loadFile(file: File, charset: Charset, category: Category) {
-        GlobalScope.launch(Dispatchers.Swing) {
-            val lines = file.readLines(charset)
-            val data = lines.takeLast(lines.size - 1)
-            val model = if (category.type == CompetitionType.SINGLES) createModelForSinglePlayer(data, category) else createModelForTeam(data, category)
-            jTable.model = model
-        }
+        val lines = file.readLines(charset)
+        val data = lines.takeLast(lines.size - 1)
+        val model = if (category.type == CompetitionType.SINGLES) createModelForSinglePlayer(data, category) else createModelForTeam(data, category)
+        jTable.model = model
     }
 
     private fun createModelForTeam(data: List<String>, category: Category): ResultTableModel {
