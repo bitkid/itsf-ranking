@@ -1,8 +1,11 @@
 package com.bitkid.itsfranking
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import org.apache.commons.codec.language.bm.NameType
 import org.apache.commons.codec.language.bm.PhoneticEngine
 import org.apache.commons.codec.language.bm.RuleType
+import java.io.File
 
 data class ITSFRank(val rank: Int, val points: Int)
 
@@ -13,7 +16,18 @@ data class ITSFPlayer(
     val rankings: Map<Category, ITSFRank>
 )
 
+data class PlayerNameWithResults(val playerName: String, val results: List<ITSFPlayer>)
+data class TwoPlayersWithResults(val player1: PlayerNameWithResults, val player2: PlayerNameWithResults)
+
+
 class ITSFPlayers(rankings: List<Ranking>) {
+
+    companion object {
+        fun readFromFile(file: File): ITSFPlayers {
+            val ranking = jacksonObjectMapper().readValue<List<Ranking>>(file)
+            return ITSFPlayers(ranking)
+        }
+    }
 
     private val engine = PhoneticEngine(NameType.GENERIC, RuleType.APPROX, true)
 
@@ -48,7 +62,20 @@ class ITSFPlayers(rankings: List<Ranking>) {
         }.sortedBy { it.rankings.getValue(category).rank }
     }
 
-    fun find(search: String): List<ITSFPlayer> {
+    fun find(search: String, searchForNameParts: Boolean = false): List<ITSFPlayer> {
+        val res = findPlayer(search)
+        val newRes = res.ifEmpty { findPlayer(search.split(" ").reversed().joinToString(" ")) }
+        if (newRes.isEmpty() && searchForNameParts) {
+            search.split(" ").forEach {
+                val splitRes = findPlayer(it)
+                if (splitRes.isNotEmpty())
+                    return splitRes
+            }
+        }
+        return newRes
+    }
+
+    private fun findPlayer(search: String): List<ITSFPlayer> {
         val normalSearch = players.filter { it.value.name.contains(search, true) }.map { it.value }
         if (normalSearch.isEmpty()) {
             val enc = engine.encode(search).split("|")

@@ -42,7 +42,7 @@ class ITSFPlayerDatabaseReader(private val topXPlayers: Int = 30, private val to
     }
 
     suspend fun readRankings(): List<Ranking> {
-        val categoryData = readCategoryPage(allCategories)
+        val categoryData = readCategoryPage(Categories.all)
         return categoryData.map {
             try {
                 val data = getPlayersMap(it)
