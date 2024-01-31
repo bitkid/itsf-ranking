@@ -62,9 +62,17 @@ class ITSFPlayers(rankings: List<Ranking>) {
         }.sortedBy { it.rankings.getValue(category).rank }
     }
 
-    fun find(search: String): List<ITSFPlayer> {
+    fun find(search: String, searchForNameParts: Boolean = false): List<ITSFPlayer> {
         val res = findPlayer(search)
-        return res.ifEmpty { findPlayer(search.split(" ").reversed().joinToString(" ")) }
+        val newRes = res.ifEmpty { findPlayer(search.split(" ").reversed().joinToString(" ")) }
+        if (newRes.isEmpty() && searchForNameParts) {
+            search.split(" ").forEach {
+                val splitRes = findPlayer(it)
+                if (splitRes.isNotEmpty())
+                    return splitRes
+            }
+        }
+        return newRes
     }
 
     private fun findPlayer(search: String): List<ITSFPlayer> {

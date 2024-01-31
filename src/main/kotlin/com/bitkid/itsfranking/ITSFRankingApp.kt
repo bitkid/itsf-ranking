@@ -183,8 +183,8 @@ object ITSFRankingApp {
     }
 
     private suspend fun loadRanking(s: String) {
-        val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
-        //val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
+        //val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
+        val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
         itsfPlayers = ITSFPlayers(rankings)
     }
 
@@ -205,7 +205,7 @@ object ITSFRankingApp {
         if (checkRankingLoaded()) {
             val text = playerNameField.text
             if (!text.isNullOrBlank()) {
-                val player = itsfPlayers.find(text)
+                val player = itsfPlayers.find(text, true)
                 jTable.model = modelWithPlayers(player)
             }
         }
