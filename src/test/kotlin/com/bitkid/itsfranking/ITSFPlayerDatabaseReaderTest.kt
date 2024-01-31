@@ -29,9 +29,7 @@ class ITSFPlayerDatabaseReaderTest {
     fun `parse page`() {
         val resource = ITSFPlayerDatabaseReaderTest::class.java.getResource("/ranking_singles_male.html")
         val data = File(resource!!.toURI()).readText()
-        val dataParsed =
-            ITSFPlayerDatabaseReader(topXPlayers = 2000).getPlayersMap(CategoryAndPage(Categories.openSingles, data, "url"))
-        println(dataParsed)
+        ITSFPlayerDatabaseReader(topXPlayers = 2000).getPlayersMap(CategoryAndPage(Categories.openSingles, data, "url"))
     }
 
     @Test
