@@ -34,11 +34,11 @@ class ITSFPlayerDatabaseReaderTest {
 
     @Test
     fun `parse rankings`() {
-        expectThat(players.players["84000895"]!!.name).isEqualTo("SPREDEMAN Tony")
+        expectThat(players.getPlayer("84000895")!!.name).isEqualTo("SPREDEMAN Tony")
         expectThat(players.find("sprede")).hasSize(2)
 
         val varos = "70300218"
-        val simon = players.players[varos]!!
+        val simon = players.getPlayer(varos)!!
         val engine = PhoneticEngine(NameType.GENERIC, RuleType.APPROX, true)
 
         expectThat(players.matchesName(engine.encode(simon.name), engine.encode("varos").split("|"))).isTrue()

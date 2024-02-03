@@ -157,7 +157,7 @@ object ITSFRankingApp {
     private fun showRanking(category: String) {
         if (checkRankingLoaded()) {
             val cat = Categories.all.single { it.targetAudience == category }
-            val players = itsfPlayers.getRanking(cat)
+            val players = itsfPlayers.getSortedRanking(cat)
             val m = emptyRankingModel()
             players.forEach {
                 val itsfRank = it.rankings.getValue(cat)
@@ -192,7 +192,7 @@ object ITSFRankingApp {
         if (checkRankingLoaded()) {
             val text = itsfNoField.text
             if (!text.isNullOrBlank()) {
-                val player = itsfPlayers.players[text]
+                val player = itsfPlayers.getPlayer(text)
                 if (player == null)
                     jTable.model = emptyModel()
                 else
