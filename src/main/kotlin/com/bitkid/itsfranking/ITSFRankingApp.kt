@@ -28,10 +28,11 @@ private class RankingButtonPanel(clicked: (String) -> Unit) : JPanel(MigLayout("
 }
 
 @OptIn(DelicateCoroutinesApi::class)
-private class LoadPanel(private val jFrame: JFrame, private val load: suspend (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap 2")) {
+private class LoadPanel(private val jFrame: JFrame, private val load: suspend (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap 3")) {
     init {
-        val tourField = JTextField(4)
-        tourField.text = "2023"
+        val label = JLabel("Tour")
+        val tourField = JComboBox(listOf("2023", "2024").toTypedArray())
+        tourField.selectedIndex = 1
         val button = JButton("Load").apply {
             addActionListener {
                 val jDialog = showLoadingDialog(jFrame)
@@ -40,7 +41,7 @@ private class LoadPanel(private val jFrame: JFrame, private val load: suspend (S
 
                 GlobalScope.launch(Dispatchers.IO) {
                     try {
-                        load(tourField.text)
+                        load(tourField.selectedItem!!.toString())
                         background = Color.GREEN
                     } catch (e: Exception) {
                         jDialog.dispose()
@@ -59,6 +60,7 @@ private class LoadPanel(private val jFrame: JFrame, private val load: suspend (S
                 }
             }
         }
+        add(label)
         add(tourField)
         add(button, "growx")
     }
@@ -84,7 +86,7 @@ private fun showLoadingDialog(jFrame: JFrame): JDialog {
 @DelicateCoroutinesApi
 private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
 
-    private var currentDirectory = File(".")
+    private var currentDirectory = File(System.getProperty("user.home"))
 
     init {
         val charsetSelect = JComboBox(listOf("UTF-8", "ISO-8859-1", "WINDOWS-1252").toTypedArray())
