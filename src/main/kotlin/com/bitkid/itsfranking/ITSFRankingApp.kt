@@ -83,6 +83,9 @@ private fun showLoadingDialog(jFrame: JFrame): JDialog {
 
 @DelicateCoroutinesApi
 private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
+
+    private var currentDirectory = File(".")
+
     init {
         val charsetSelect = JComboBox(listOf("UTF-8", "ISO-8859-1", "WINDOWS-1252").toTypedArray())
         charsetSelect.selectedIndex = 2
@@ -93,12 +96,13 @@ private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, 
         val button = JButton("Open File").apply {
             addActionListener {
                 if (isLoaded()) {
-                    val fileChooser = JFileChooser(File("."))
+                    val fileChooser = JFileChooser(currentDirectory)
                     fileChooser.isMultiSelectionEnabled = false
                     fileChooser.fileSelectionMode = JFileChooser.FILES_ONLY
                     val r = fileChooser.showOpenDialog(jFrame)
                     if (r == JFileChooser.APPROVE_OPTION) {
                         val dialog = showLoadingDialog(jFrame)
+                        currentDirectory = fileChooser.selectedFile.parentFile
                         GlobalScope.launch(Dispatchers.IO) {
                             try {
                                 val file = fileChooser.selectedFile
@@ -161,8 +165,9 @@ object ITSFRankingApp {
 
     private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
 
-    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "country", "points", "status"), true)
-    private fun emptyListResultModelDoubles() = ResultTableModel(listOf("player1", "player2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"), true)
+    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "itsf name", "country", "points", "status"), true)
+    private fun emptyListResultModelDoubles() =
+        ResultTableModel(listOf("player1", "itsf name 1", "player2", "itsf name 2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"), true)
 
     private fun showRanking(category: String) {
         if (checkRankingLoaded()) {
@@ -231,22 +236,24 @@ object ITSFRankingApp {
             val model = emptyListResultModelSingles()
             listMatcher.matchPlayer(file, charset, category).forEach {
                 when (it.results.size) {
-                    0 -> model.addRow(listOf(it.playerName, null, null, "NOT_FOUND"))
+                    0 -> model.addRow(listOf(it.playerName, null, null, null, "NOT_FOUND"))
                     1 -> {
                         val player = it.results.single()
-                        model.addRow(listOf(it.playerName, player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                        model.addRow(listOf(it.playerName, player.name, player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
                     }
 
-                    else -> model.addRow(listOf(it.playerName, null, null, "MULTIPLE_MATCHES"))
+                    else -> model.addRow(listOf(it.playerName, null, null, null, "MULTIPLE_MATCHES"))
                 }
             }
             model
         } else {
             val model = emptyListResultModelDoubles()
-            listMatcher.matchTeam(file, charset, category).forEach {
-                val list = mutableListOf<String?>(it.player1.playerName, it.player2.playerName)
-                addPlayerToRow(list, category, it.player1)
-                addPlayerToRow(list, category, it.player2)
+            listMatcher.matchTeam(file, charset, category).forEach { pwr ->
+                val list = mutableListOf<String?>(pwr.player1.playerName, pwr.player2.playerName)
+                val p1 = addPlayerToRow(list, category, pwr.player1)
+                val p2 = addPlayerToRow(list, category, pwr.player2)
+                list.add(1, p1?.name)
+                list.add(3, p2?.name)
                 model.addRow(list)
             }
             model
@@ -255,15 +262,22 @@ object ITSFRankingApp {
         tabbedPane.selectedIndex = 1
     }
 
-    private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults) {
-        when (playerNameWithResults.results.size) {
-            0 -> list.addAll(listOf(null, null, "NOT_FOUND"))
+    private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults): ITSFPlayer? {
+        return when (playerNameWithResults.results.size) {
+            0 -> {
+                list.addAll(listOf(null, null, "NOT_FOUND"))
+                null
+            }
             1 -> {
                 val player = playerNameWithResults.results.single()
                 list.addAll(listOf(player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                player
             }
 
-            else -> list.addAll(listOf(null, null, "MULTIPLE_MATCHES"))
+            else -> {
+                list.addAll(listOf(null, null, "MULTIPLE_MATCHES"))
+                null
+            }
         }
     }
 
