@@ -83,6 +83,9 @@ private fun showLoadingDialog(jFrame: JFrame): JDialog {
 
 @DelicateCoroutinesApi
 private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
+
+    private var currentDirectory = File(".")
+
     init {
         val charsetSelect = JComboBox(listOf("UTF-8", "ISO-8859-1", "WINDOWS-1252").toTypedArray())
         charsetSelect.selectedIndex = 2
@@ -93,12 +96,13 @@ private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, 
         val button = JButton("Open File").apply {
             addActionListener {
                 if (isLoaded()) {
-                    val fileChooser = JFileChooser(File("."))
+                    val fileChooser = JFileChooser(currentDirectory)
                     fileChooser.isMultiSelectionEnabled = false
                     fileChooser.fileSelectionMode = JFileChooser.FILES_ONLY
                     val r = fileChooser.showOpenDialog(jFrame)
                     if (r == JFileChooser.APPROVE_OPTION) {
                         val dialog = showLoadingDialog(jFrame)
+                        currentDirectory = fileChooser.selectedFile.parentFile
                         GlobalScope.launch(Dispatchers.IO) {
                             try {
                                 val file = fileChooser.selectedFile
@@ -127,9 +131,9 @@ private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, 
     }
 }
 
-private class ResultTableModel(columns: List<String>) : DefaultTableModel(Vector(columns), 0) {
+private class ResultTableModel(columns: List<String>, private val editable: Boolean = false) : DefaultTableModel(Vector(columns), 0) {
     override fun isCellEditable(row: Int, column: Int): Boolean {
-        return false
+        return editable
     }
 }
 
@@ -146,25 +150,37 @@ object ITSFRankingApp {
         cellSelectionEnabled = true
     }
 
+    private val jTableList = JTable(emptyListResultModelSingles()).apply {
+        cellSelectionEnabled = true
+    }
+
+    private val jTableRanking = JTable(emptyRankingModel()).apply {
+        cellSelectionEnabled = true
+    }
+
+    private val tabbedPane = JTabbedPane()
+
 
     private fun emptyModel() = ResultTableModel(listOf("itsf no.", "name") + Categories.all.map { it.targetAudience })
 
     private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
 
-    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "country", "points", "status"))
-    private fun emptyListResultModelDoubles() = ResultTableModel(listOf("player1", "player2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"))
+    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "itsf name", "country", "points", "status"), true)
+    private fun emptyListResultModelDoubles() =
+        ResultTableModel(listOf("player1", "itsf name 1", "player2", "itsf name 2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"), true)
 
     private fun showRanking(category: String) {
         if (checkRankingLoaded()) {
             val cat = Categories.all.single { it.targetAudience == category }
-            val players = itsfPlayers.getRanking(cat)
+            val players = itsfPlayers.getSortedRanking(cat)
             val m = emptyRankingModel()
             players.forEach {
                 val itsfRank = it.rankings.getValue(cat)
                 val props = listOf(it.licenseNumber, it.name, it.country, itsfRank.rank.toString(), itsfRank.points.toString())
                 m.addRow(props)
             }
-            jTable.model = m
+            jTableRanking.model = m
+            tabbedPane.selectedIndex = 2
         }
     }
 
@@ -192,11 +208,12 @@ object ITSFRankingApp {
         if (checkRankingLoaded()) {
             val text = itsfNoField.text
             if (!text.isNullOrBlank()) {
-                val player = itsfPlayers.players[text]
+                val player = itsfPlayers.getPlayer(text)
                 if (player == null)
                     jTable.model = emptyModel()
                 else
                     jTable.model = modelWithPlayers(listOf(player))
+                tabbedPane.selectedIndex = 0
             }
         }
     }
@@ -207,68 +224,61 @@ object ITSFRankingApp {
             if (!text.isNullOrBlank()) {
                 val player = itsfPlayers.find(text, true)
                 jTable.model = modelWithPlayers(player)
+                tabbedPane.selectedIndex = 0
             }
         }
     }
 
 
     private fun loadFile(file: File, charset: Charset, category: Category) {
-        val lines = file.readLines(charset)
-        val data = lines.takeLast(lines.size - 1)
-        val model = if (category.type == CompetitionType.SINGLES) createModelForSinglePlayer(data, category) else createModelForTeam(data, category)
-        jTable.model = model
-    }
+        val listMatcher = ListMatcher(itsfPlayers)
+        val model = if (category.type == CompetitionType.SINGLES) {
+            val model = emptyListResultModelSingles()
+            listMatcher.matchPlayer(file, charset, category).forEach {
+                when (it.results.size) {
+                    0 -> model.addRow(listOf(it.playerName, null, null, null, "NOT_FOUND"))
+                    1 -> {
+                        val player = it.results.single()
+                        model.addRow(listOf(it.playerName, player.name, player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                    }
 
-    private fun createModelForTeam(data: List<String>, category: Category): ResultTableModel {
-        val model = emptyListResultModelDoubles()
-        data.map {
-            val playerNames = it.split(";")
-            require(playerNames.size == 2) { "expect exactly 2 players per line" }
-
-            val player1Name = playerNames[0].trim()
-            val results = itsfPlayers.find(player1Name)
-            val player1 = PlayerNameWithResults(playerNames[0], results)
-
-            val player2Name = playerNames[1].trim()
-            val results2 = itsfPlayers.find(player2Name)
-            val player2 = PlayerNameWithResults(playerNames[1], results2)
-
-            TwoPlayersWithResults(player1, player2)
-        }.forEach {
-            val list = mutableListOf<String?>(it.player1.playerName, it.player2.playerName)
-            addPlayerToRow(list, category, it.player1)
-            addPlayerToRow(list, category, it.player2)
-            model.addRow(list)
+                    else -> model.addRow(listOf(it.playerName, null, null, null, "MULTIPLE_MATCHES"))
+                }
+            }
+            model
+        } else {
+            val model = emptyListResultModelDoubles()
+            listMatcher.matchTeam(file, charset, category).forEach { pwr ->
+                val list = mutableListOf<String?>(pwr.player1.playerName, pwr.player2.playerName)
+                val p1 = addPlayerToRow(list, category, pwr.player1)
+                val p2 = addPlayerToRow(list, category, pwr.player2)
+                list.add(1, p1?.name)
+                list.add(3, p2?.name)
+                model.addRow(list)
+            }
+            model
         }
-        return model
+        jTableList.model = model
+        tabbedPane.selectedIndex = 1
     }
 
-    private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults) {
-        when (playerNameWithResults.results.size) {
-            0 -> list.addAll(listOf(null, null, "NOT_FOUND"))
+    private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults): ITSFPlayer? {
+        return when (playerNameWithResults.results.size) {
+            0 -> {
+                list.addAll(listOf(null, null, "NOT_FOUND"))
+                null
+            }
             1 -> {
                 val player = playerNameWithResults.results.single()
                 list.addAll(listOf(player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                player
             }
 
-            else -> list.addAll(listOf(null, null, "MULTIPLE_MATCHES"))
-        }
-    }
-
-    private fun createModelForSinglePlayer(data: List<String>, category: Category): ResultTableModel {
-        val model = emptyListResultModelSingles()
-        data.map { PlayerNameWithResults(it, itsfPlayers.find(it)) }.forEach {
-            when (it.results.size) {
-                0 -> model.addRow(listOf(it.playerName, null, null, "NOT_FOUND"))
-                1 -> {
-                    val player = it.results.single()
-                    model.addRow(listOf(it.playerName, player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
-                }
-
-                else -> model.addRow(listOf(it.playerName, null, null, "MULTIPLE_MATCHES"))
+            else -> {
+                list.addAll(listOf(null, null, "MULTIPLE_MATCHES"))
+                null
             }
         }
-        return model
     }
 
     private fun addPlayerToModel(model: ResultTableModel, it: ITSFPlayer) {
@@ -322,7 +332,11 @@ object ITSFRankingApp {
         panel.add(LoadCsvPanel(jFrame, ::loadFile, ::checkRankingLoaded), "growx")
 
         panel.add(JLabel("Results"))
-        panel.add(JScrollPane(jTable), "growx, height :400:")
+
+        tabbedPane.addTab("Search results", JScrollPane(jTable))
+        tabbedPane.addTab("Player list", JScrollPane(jTableList))
+        tabbedPane.addTab("Rankings", JScrollPane(jTableRanking))
+        panel.add(tabbedPane, "growx, height :400:")
 
         return panel
     }

@@ -1,12 +1,5 @@
 package com.bitkid.itsfranking
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import org.apache.commons.codec.language.bm.NameType
-import org.apache.commons.codec.language.bm.PhoneticEngine
-import org.apache.commons.codec.language.bm.RuleType
-import java.io.File
-
 data class ITSFRank(val rank: Int, val points: Int)
 
 data class ITSFPlayer(
@@ -14,89 +7,13 @@ data class ITSFPlayer(
     val name: String,
     val country: String,
     val rankings: Map<Category, ITSFRank>
-)
+) {
+    fun hasFemaleRanking(): Boolean {
+        return rankings[Categories.womenDoubles] != null || rankings[Categories.womenSingles] != null
+    }
+}
 
 data class PlayerNameWithResults(val playerName: String, val results: List<ITSFPlayer>)
 data class TwoPlayersWithResults(val player1: PlayerNameWithResults, val player2: PlayerNameWithResults)
 
 
-class ITSFPlayers(rankings: List<Ranking>) {
-
-    companion object {
-        fun readFromFile(file: File): ITSFPlayers {
-            val ranking = jacksonObjectMapper().readValue<List<Ranking>>(file)
-            return ITSFPlayers(ranking)
-        }
-    }
-
-    private val engine = PhoneticEngine(NameType.GENERIC, RuleType.APPROX, true)
-
-    data class CategoriesAndPlayer(val category: Category, val player: RankedPlayer)
-
-    val players: Map<String, ITSFPlayer>
-
-    private val phoneticNames: Map<String, String>
-
-    init {
-        val playerPerLicense = rankings.flatMap { r -> r.database.values.map { CategoriesAndPlayer(r.category, it) } }
-            .groupBy { it.player.licenseNumber }
-        players = playerPerLicense.mapValues { playerEntry ->
-            val licenseNumber = playerEntry.key
-            val rankingsForPlayer = playerEntry.value
-            val name = rankingsForPlayer.first().player.name
-            val country = rankingsForPlayer.first().player.country
-            val r = rankingsForPlayer.associate { it.category to ITSFRank(it.player.rank, it.player.points) }
-            ITSFPlayer(licenseNumber, name, country, r)
-        }
-        phoneticNames = players.map {
-            it
-        }.associate {
-            val encode = engine.encode(it.value.name)
-            it.key to encode
-        }
-    }
-
-    fun getRanking(category: Category): List<ITSFPlayer> {
-        return players.values.filter {
-            it.rankings[category] != null
-        }.sortedBy { it.rankings.getValue(category).rank }
-    }
-
-    fun find(search: String, searchForNameParts: Boolean = false): List<ITSFPlayer> {
-        val res = findPlayer(search)
-        val newRes = res.ifEmpty { findPlayer(search.split(" ").reversed().joinToString(" ")) }
-        if (newRes.isEmpty() && searchForNameParts) {
-            search.split(" ").forEach {
-                val splitRes = findPlayer(it)
-                if (splitRes.isNotEmpty())
-                    return splitRes
-            }
-        }
-        return newRes
-    }
-
-    private fun findPlayer(search: String): List<ITSFPlayer> {
-        val normalSearch = players.filter { it.value.name.contains(search, true) }.map { it.value }
-        if (normalSearch.isEmpty()) {
-            val enc = engine.encode(search).split("|")
-            return phoneticNames.filter {
-                matchesName(it.value, enc)
-            }.map {
-                players.getValue(it.key)
-            }
-        } else {
-            return normalSearch
-        }
-    }
-
-    fun matchesName(name: String, enc: List<String>): Boolean {
-        name.split("|").forEach { encName ->
-            enc.forEach { encSearch ->
-                if (encName.contains(encSearch, true)) {
-                    return true
-                }
-            }
-        }
-        return false
-    }
-}
