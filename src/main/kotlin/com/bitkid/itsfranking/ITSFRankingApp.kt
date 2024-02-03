@@ -1,5 +1,6 @@
 package com.bitkid.itsfranking
 
+import com.bitkid.itsfranking.ui.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -10,64 +11,11 @@ import java.awt.Color
 import java.awt.event.ActionEvent
 import java.io.File
 import java.nio.charset.Charset
-import java.util.*
 import javax.swing.*
-import javax.swing.table.DefaultTableModel
 
-
-private class RankingButtonPanel(clicked: (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap ${Categories.all.size}")) {
-    init {
-        Categories.all.forEach { c ->
-            add(JButton(c.name).apply {
-                addActionListener {
-                    clicked(c.targetAudience)
-                }
-            }, "growx")
-        }
-    }
-}
 
 @OptIn(DelicateCoroutinesApi::class)
-private class LoadPanel(private val jFrame: JFrame, private val load: suspend (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap 3")) {
-    init {
-        val label = JLabel("Tour")
-        val tourField = JComboBox(listOf("2023", "2024").toTypedArray())
-        tourField.selectedIndex = 1
-        val button = JButton("Load").apply {
-            addActionListener {
-                val jDialog = showLoadingDialog(jFrame)
-                isEnabled = false
-                tourField.isEnabled = false
-
-                GlobalScope.launch(Dispatchers.IO) {
-                    try {
-                        load(tourField.selectedItem!!.toString())
-                        background = Color.GREEN
-                    } catch (e: Exception) {
-                        jDialog.dispose()
-                        background = Color.RED
-                        isEnabled = true
-                        tourField.isEnabled = true
-                        JOptionPane.showMessageDialog(
-                            jFrame,
-                            "Fetching data failed! \n ${e.stackTraceToString()}",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                        )
-                    } finally {
-                        jDialog.dispose()
-                    }
-                }
-            }
-        }
-        add(label)
-        add(tourField)
-        add(button, "growx")
-    }
-}
-
-@OptIn(DelicateCoroutinesApi::class)
-private fun showLoadingDialog(jFrame: JFrame): JDialog {
+fun showLoadingDialog(jFrame: JFrame): JDialog {
     val jDialog = JDialog(jFrame, "loading", true)
     jDialog.contentPane.layout = MigLayout()
     jDialog.isUndecorated = true
@@ -81,62 +29,6 @@ private fun showLoadingDialog(jFrame: JFrame): JDialog {
         jDialog.isVisible = true
     }
     return jDialog
-}
-
-@DelicateCoroutinesApi
-private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
-
-    private var currentDirectory = File(System.getProperty("user.home"))
-
-    init {
-        val charsetSelect = JComboBox(listOf("UTF-8", "ISO-8859-1", "WINDOWS-1252").toTypedArray())
-        charsetSelect.selectedIndex = 2
-
-        val category = JComboBox(Categories.all.map { it.name }.toTypedArray())
-        category.selectedIndex = 0
-
-        val button = JButton("Open File").apply {
-            addActionListener {
-                if (isLoaded()) {
-                    val fileChooser = JFileChooser(currentDirectory)
-                    fileChooser.isMultiSelectionEnabled = false
-                    fileChooser.fileSelectionMode = JFileChooser.FILES_ONLY
-                    val r = fileChooser.showOpenDialog(jFrame)
-                    if (r == JFileChooser.APPROVE_OPTION) {
-                        val dialog = showLoadingDialog(jFrame)
-                        currentDirectory = fileChooser.selectedFile.parentFile
-                        GlobalScope.launch(Dispatchers.IO) {
-                            try {
-                                val file = fileChooser.selectedFile
-                                load(file, Charset.forName(charsetSelect.selectedItem!!.toString()), Categories.all.single { it.name == category.selectedItem!! })
-                            } catch (e: Exception) {
-                                dialog.dispose()
-                                JOptionPane.showMessageDialog(
-                                    jFrame,
-                                    "Loading CSV list failed! \n ${e.stackTraceToString()}",
-                                    "Error",
-                                    JOptionPane.ERROR_MESSAGE
-                                )
-                            } finally {
-                                dialog.dispose()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        add(JLabel("Category:"))
-        add(category, "growx")
-        add(JLabel("Charset:"))
-        add(charsetSelect, "growx")
-        add(button, "growx")
-    }
-}
-
-private class ResultTableModel(columns: List<String>, private val editable: Boolean = false) : DefaultTableModel(Vector(columns), 0) {
-    override fun isCellEditable(row: Int, column: Int): Boolean {
-        return editable
-    }
 }
 
 @DelicateCoroutinesApi
@@ -358,9 +250,5 @@ object ITSFRankingApp {
             frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
             frame.isVisible = true
         }
-    }
-
-    private fun ResultTableModel.addRow(data: List<*>) {
-        addRow(data.toTypedArray())
     }
 }
