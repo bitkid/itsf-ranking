@@ -8,10 +8,7 @@ import org.apache.commons.codec.language.bm.RuleType
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
-import strikt.assertions.hasSize
-import strikt.assertions.isEqualTo
-import strikt.assertions.isGreaterThan
-import strikt.assertions.isTrue
+import strikt.assertions.*
 import java.io.File
 
 class ITSFPlayerDatabaseReaderTest {
@@ -43,5 +40,18 @@ class ITSFPlayerDatabaseReaderTest {
 
         expectThat(players.matchesName(engine.encode(simon.name), engine.encode("varos").split("|"))).isTrue()
         expectThat(players.find("varos").size).isGreaterThan(1)
+    }
+
+    @Test
+    fun `player tests`() {
+        expectThat(players.find("pintilii").single().hasFemaleRanking()).isTrue()
+        expectThat(players.find("pintilii").single().hasJuniorRankings()).isFalse()
+        expectThat(players.find("pintilii").single().hasSeniorRankings()).isFalse()
+
+        expectThat(players.find("guscheh").single().hasSeniorRankings()).isFalse()
+        expectThat(players.find("guscheh").single().hasJuniorRankings()).isFalse()
+        expectThat(players.find("guscheh").single().hasFemaleRanking()).isFalse()
+
+        expectThat(players.find("bentivoglio").single().hasSeniorRankings()).isTrue()
     }
 }

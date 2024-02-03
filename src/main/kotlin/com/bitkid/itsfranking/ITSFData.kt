@@ -11,6 +11,14 @@ data class ITSFPlayer(
     fun hasFemaleRanking(): Boolean {
         return rankings[Categories.womenDoubles] != null || rankings[Categories.womenSingles] != null
     }
+
+    fun hasJuniorRankings(): Boolean {
+        return rankings[Categories.juniorDoubles] != null || rankings[Categories.juniorSingles] != null || rankings[Categories.classicJunior] != null
+    }
+
+    fun hasSeniorRankings(): Boolean {
+        return rankings[Categories.seniorDoubles] != null || rankings[Categories.seniorSingles] != null || rankings[Categories.classicSenior] != null
+    }
 }
 
 data class PlayerNameWithResults(val playerName: String, val results: List<ITSFPlayer>)
