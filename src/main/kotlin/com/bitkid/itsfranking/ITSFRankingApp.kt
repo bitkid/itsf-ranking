@@ -127,9 +127,9 @@ private class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, 
     }
 }
 
-private class ResultTableModel(columns: List<String>) : DefaultTableModel(Vector(columns), 0) {
+private class ResultTableModel(columns: List<String>, private val editable: Boolean = false) : DefaultTableModel(Vector(columns), 0) {
     override fun isCellEditable(row: Int, column: Int): Boolean {
-        return false
+        return editable
     }
 }
 
@@ -146,13 +146,23 @@ object ITSFRankingApp {
         cellSelectionEnabled = true
     }
 
+    private val jTableList = JTable(emptyListResultModelSingles()).apply {
+        cellSelectionEnabled = true
+    }
+
+    private val jTableRanking = JTable(emptyRankingModel()).apply {
+        cellSelectionEnabled = true
+    }
+
+    private val tabbedPane = JTabbedPane()
+
 
     private fun emptyModel() = ResultTableModel(listOf("itsf no.", "name") + Categories.all.map { it.targetAudience })
 
     private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
 
-    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "country", "points", "status"))
-    private fun emptyListResultModelDoubles() = ResultTableModel(listOf("player1", "player2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"))
+    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "country", "points", "status"), true)
+    private fun emptyListResultModelDoubles() = ResultTableModel(listOf("player1", "player2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"), true)
 
     private fun showRanking(category: String) {
         if (checkRankingLoaded()) {
@@ -164,7 +174,8 @@ object ITSFRankingApp {
                 val props = listOf(it.licenseNumber, it.name, it.country, itsfRank.rank.toString(), itsfRank.points.toString())
                 m.addRow(props)
             }
-            jTable.model = m
+            jTableRanking.model = m
+            tabbedPane.selectedIndex = 2
         }
     }
 
@@ -197,6 +208,7 @@ object ITSFRankingApp {
                     jTable.model = emptyModel()
                 else
                     jTable.model = modelWithPlayers(listOf(player))
+                tabbedPane.selectedIndex = 0
             }
         }
     }
@@ -207,6 +219,7 @@ object ITSFRankingApp {
             if (!text.isNullOrBlank()) {
                 val player = itsfPlayers.find(text, true)
                 jTable.model = modelWithPlayers(player)
+                tabbedPane.selectedIndex = 0
             }
         }
     }
@@ -238,7 +251,8 @@ object ITSFRankingApp {
             }
             model
         }
-        jTable.model = model
+        jTableList.model = model
+        tabbedPane.selectedIndex = 1
     }
 
     private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults) {
@@ -304,7 +318,11 @@ object ITSFRankingApp {
         panel.add(LoadCsvPanel(jFrame, ::loadFile, ::checkRankingLoaded), "growx")
 
         panel.add(JLabel("Results"))
-        panel.add(JScrollPane(jTable), "growx, height :400:")
+
+        tabbedPane.addTab("Search results", JScrollPane(jTable))
+        tabbedPane.addTab("Player list", JScrollPane(jTableList))
+        tabbedPane.addTab("Rankings", JScrollPane(jTableRanking))
+        panel.add(tabbedPane, "growx, height :400:")
 
         return panel
     }

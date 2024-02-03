@@ -55,23 +55,31 @@ class ITSFPlayers(rankings: List<Ranking>) {
 
     fun find(search: String, searchForNameParts: Boolean = false): List<ITSFPlayer> {
         val res = findPlayer(search)
-        val newRes = res.ifEmpty { findPlayer(search.split(" ").reversed().joinToString(" ")) }
-        if (newRes.isEmpty() && searchForNameParts) {
-            search.split(" ").forEach {
-                val splitRes = findPlayer(it)
-                if (splitRes.isNotEmpty())
-                    return splitRes
+        if (res.isEmpty()) {
+            val phoneticRes = phoneticSearch(search)
+            if (phoneticRes.isEmpty()) {
+                val reversedName = search.split(" ").reversed().joinToString(" ")
+                val reversedRes = if (reversedName != search) findPlayer(reversedName) else emptyList()
+                if (reversedRes.isEmpty() && searchForNameParts) {
+                    return findPlayerWithNameParts(search)
+                }
+                return reversedRes
             }
+            return phoneticRes
         }
-        return newRes
+        return res
     }
 
-    private fun findPlayer(search: String): List<ITSFPlayer> {
-        val normalSearch = players.filter { it.value.name.contains(search, true) }.map { it.value }
-        return normalSearch.ifEmpty {
-            phoneticSearch(search)
+    private fun findPlayerWithNameParts(search: String): List<ITSFPlayer> {
+        search.split(" ").forEach {
+            val splitRes = findPlayer(it)
+            if (splitRes.isNotEmpty())
+                return splitRes
         }
+        return emptyList()
     }
+
+    private fun findPlayer(search: String): List<ITSFPlayer> = players.filter { it.value.name.contains(search, true) }.map { it.value }
 
     private fun phoneticSearch(search: String): List<ITSFPlayer> {
         val enc = engine.encode(search).split("|")

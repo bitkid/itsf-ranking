@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.hasSize
-import strikt.assertions.isEmpty
 import strikt.assertions.isEqualTo
 import java.io.File
 import java.nio.charset.Charset
@@ -20,8 +19,8 @@ class ListMatcherTest {
     fun singles() {
         val matcher = ListMatcher(players)
         val result = matcher.matchPlayer(singles, Charset.forName("WINDOWS-1252"), Categories.openSingles)
-        expectThat(result.filter { it.results.size > 1 }).hasSize(1)
-        expectThat(result.filter { it.results.isEmpty() }).isEmpty()
+        expectThat(result.filter { it.results.size > 1 }).hasSize(3)
+        expectThat(result.filter { it.results.isEmpty() }).hasSize(1)
     }
 
     @Test
@@ -45,6 +44,6 @@ class ListMatcherTest {
         val matcher = ListMatcher(players)
         val result = matcher.matchTeam(mixed, Charsets.UTF_8, Categories.mixedDoubles)
         expectThat(result.filter { it.player1.results.isEmpty() || it.player2.results.isEmpty() }).hasSize(0)
-        expectThat(result.filter { it.player1.results.size > 1 || it.player2.results.size > 1 }).hasSize(2)
+        expectThat(result.filter { it.player1.results.size > 1 || it.player2.results.size > 1 }).hasSize(3)
     }
 }
