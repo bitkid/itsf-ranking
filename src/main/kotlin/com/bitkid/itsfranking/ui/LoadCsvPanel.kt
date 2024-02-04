@@ -2,6 +2,7 @@ package com.bitkid.itsfranking.ui
 
 import com.bitkid.itsfranking.Categories
 import com.bitkid.itsfranking.Category
+import com.bitkid.itsfranking.ITSFRankingApp
 import com.bitkid.itsfranking.showLoadingDialog
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +14,7 @@ import java.nio.charset.Charset
 import javax.swing.*
 
 @DelicateCoroutinesApi
-class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
+class LoadCsvPanel(private val load: (File, Charset, Category) -> Unit, private val isLoaded: () -> Boolean) : JPanel(MigLayout("insets 0 0 0 0")) {
 
     private var currentDirectory = File(System.getProperty("user.home"))
 
@@ -30,9 +31,9 @@ class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset,
                     val fileChooser = JFileChooser(currentDirectory)
                     fileChooser.isMultiSelectionEnabled = false
                     fileChooser.fileSelectionMode = JFileChooser.FILES_ONLY
-                    val r = fileChooser.showOpenDialog(jFrame)
+                    val r = fileChooser.showOpenDialog(ITSFRankingApp.jFrame)
                     if (r == JFileChooser.APPROVE_OPTION) {
-                        val dialog = showLoadingDialog(jFrame)
+                        val dialog = showLoadingDialog()
                         currentDirectory = fileChooser.selectedFile.parentFile
                         GlobalScope.launch(Dispatchers.IO) {
                             try {
@@ -41,7 +42,7 @@ class LoadCsvPanel(private val jFrame: JFrame, private val load: (File, Charset,
                             } catch (e: Exception) {
                                 dialog.dispose()
                                 JOptionPane.showMessageDialog(
-                                    jFrame,
+                                    ITSFRankingApp.jFrame,
                                     "Loading CSV list failed! \n ${e.stackTraceToString()}",
                                     "Error",
                                     JOptionPane.ERROR_MESSAGE

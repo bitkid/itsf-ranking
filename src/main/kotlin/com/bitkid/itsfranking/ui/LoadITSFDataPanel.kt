@@ -1,5 +1,6 @@
 package com.bitkid.itsfranking.ui
 
+import com.bitkid.itsfranking.ITSFRankingApp
 import com.bitkid.itsfranking.showLoadingDialog
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -7,17 +8,19 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.miginfocom.swing.MigLayout
 import java.awt.Color
+import java.time.LocalDateTime
 import javax.swing.*
 
 @OptIn(DelicateCoroutinesApi::class)
-class LoadPanel(private val jFrame: JFrame, private val load: suspend (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap 3")) {
+class LoadITSFDataPanel(private val load: suspend (String) -> Unit) : JPanel(MigLayout("insets 0 0 0 0, wrap 3")) {
     init {
         val label = JLabel("Tour")
-        val tourField = JComboBox(listOf("2023", "2024").toTypedArray())
-        tourField.selectedIndex = 1
+        val currentYear = LocalDateTime.now().year
+        val tourField = JComboBox(listOf(currentYear, currentYear - 1).toTypedArray())
+        tourField.selectedIndex = 0
         val button = JButton("Load").apply {
             addActionListener {
-                val jDialog = showLoadingDialog(jFrame)
+                val jDialog = showLoadingDialog()
                 isEnabled = false
                 tourField.isEnabled = false
 
@@ -31,7 +34,7 @@ class LoadPanel(private val jFrame: JFrame, private val load: suspend (String) -
                         isEnabled = true
                         tourField.isEnabled = true
                         JOptionPane.showMessageDialog(
-                            jFrame,
+                            ITSFRankingApp.jFrame,
                             "Fetching data failed! \n ${e.stackTraceToString()}",
                             "Error",
                             JOptionPane.ERROR_MESSAGE
