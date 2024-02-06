@@ -1,10 +1,24 @@
 ## ITSF Ranking App
 
-To run the app you need to have a Java JRE installed (version 8 or higher).
+### Installation
+
+To run the app you need to have a Java JRE installed (version 8 or higher) and you need internet access.
 
 Download the executable jar file and launch it (probably by double-clicking on it)
 
 The latest release can always be found here https://github.com/bitkid/itsf-ranking/packages/2052592 and is named itsf-ranking-{version}-all.jar
+
+### Features
+
+- downloads the ranking for the chosen tour from the ITSF page (top 2000 player in every category)
+- you can look at the rankings and copy them in an excel friendly way
+- you can search by ITSF license number
+- you can search for player names (phonetic, string part matching)
+- you can upload text files (for singles 1 player per line for doubles 2 players per line separated by `;`) and the app tries to match it with the current ranking
+
+### Support
+
+There is no support whatsoever. You can write issues and if i have time i might fix them. But i always accept PRs!
 
 ### Development
 

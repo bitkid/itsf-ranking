@@ -15,8 +15,8 @@ import javax.swing.*
 
 
 @OptIn(DelicateCoroutinesApi::class)
-fun showLoadingDialog(jFrame: JFrame): JDialog {
-    val jDialog = JDialog(jFrame, "loading", true)
+fun showLoadingDialog(): JDialog {
+    val jDialog = JDialog(ITSFRankingApp.jFrame, "loading", true)
     jDialog.contentPane.layout = MigLayout()
     jDialog.isUndecorated = true
     jDialog.contentPane.add(JLabel(" LOADING ...").apply {
@@ -24,7 +24,7 @@ fun showLoadingDialog(jFrame: JFrame): JDialog {
     }, "width :100:")
     jDialog.defaultCloseOperation = JDialog.DO_NOTHING_ON_CLOSE
     jDialog.pack()
-    jDialog.setLocationRelativeTo(jFrame)
+    jDialog.setLocationRelativeTo(ITSFRankingApp.jFrame)
     GlobalScope.launch(Dispatchers.Swing) {
         jDialog.isVisible = true
     }
@@ -34,7 +34,9 @@ fun showLoadingDialog(jFrame: JFrame): JDialog {
 @DelicateCoroutinesApi
 object ITSFRankingApp {
     private lateinit var itsfPlayers: ITSFPlayers
-    private lateinit var jFrame: JFrame
+    lateinit var jFrame: JFrame
+
+    val version = getVersionFromJarFile()
 
 
     private val playerNameField = JTextField(50)
@@ -55,7 +57,7 @@ object ITSFRankingApp {
     private val tabbedPane = JTabbedPane()
 
 
-    private fun emptyModel() = ResultTableModel(listOf("itsf no.", "name") + Categories.all.map { it.targetAudience })
+    private fun emptyModel() = ResultTableModel(listOf("itsf no.", "name", "country") + Categories.all.map { it.targetAudience })
 
     private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
 
@@ -93,7 +95,7 @@ object ITSFRankingApp {
     }
 
     private suspend fun loadRanking(s: String) {
-        //val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
+        // val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
         val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
         itsfPlayers = ITSFPlayers(rankings)
     }
@@ -181,9 +183,9 @@ object ITSFRankingApp {
             if (r == null)
                 ""
             else
-                "${r.rank} (${r.points})"
+                "${r.points} (rank ${r.rank})"
         }
-        val all = listOf(it.licenseNumber, it.name) + ranks
+        val all = listOf(it.licenseNumber, it.name, it.country) + ranks
         model.addRow(all)
     }
 
@@ -193,7 +195,7 @@ object ITSFRankingApp {
         val panel = JPanel(MigLayout("wrap 2"))
 
         panel.add(JLabel("Load ITSF Rankings"))
-        panel.add(LoadPanel(jFrame) { loadRanking(it) }, "growx")
+        panel.add(LoadITSFDataPanel { loadRanking(it) }, "growx")
 
         val searchAction: Action = object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent) {
@@ -223,7 +225,7 @@ object ITSFRankingApp {
         panel.add(JButton("Search").apply { addActionListener(searchLicenseAction) }, "growx")
 
         panel.add(JLabel("Upload player list"))
-        panel.add(LoadCsvPanel(jFrame, ::loadFile, ::checkRankingLoaded), "growx")
+        panel.add(LoadCsvPanel(::loadFile, ::checkRankingLoaded), "growx")
 
         panel.add(JLabel("Results"))
 
@@ -243,12 +245,18 @@ object ITSFRankingApp {
             } catch (ex: Exception) {
                 ex.printStackTrace()
             }
-            val frame = JFrame("ITSF Rankings")
+            val frame = JFrame("ITSF Rankings ($version)")
             frame.contentPane.add(createPanel(frame))
             frame.pack()
             frame.isResizable = false
             frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
             frame.isVisible = true
         }
+    }
+
+    private fun getVersionFromJarFile(): String {
+        val c = ITSFRankingApp.javaClass
+        val input = c.getResource('/' + c.getName().replace('.', '/') + ".class")
+        return "itsf-ranking-.*all\\.jar".toRegex().find(input!!.toString())?.groupValues?.first()?.split("-")?.get(2) ?: "DEV"
     }
 }

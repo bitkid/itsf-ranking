@@ -8,7 +8,7 @@ import strikt.assertions.isEqualTo
 import java.io.File
 import java.nio.charset.Charset
 
-val players = ITSFPlayers.readFromFile(File(ITSFPlayerDatabaseReaderTest::class.java.getResource("/itsfFullRankings_2023.json")!!.toURI()))
+val players by lazy { ITSFPlayers.readFromFile(File(ITSFPlayerDatabaseReaderTest::class.java.getResource("/itsfFullRankings_2023.json")!!.toURI())) }
 
 class ListMatcherTest {
 
