@@ -61,9 +61,12 @@ object ITSFRankingApp {
 
     private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
 
-    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "itsf name", "country", "points", "status"), true)
+    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "itsf name", "country", "points", "rank", "status"), true)
     private fun emptyListResultModelDoubles() =
-        ResultTableModel(listOf("player1", "itsf name 1", "player2", "itsf name 2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"), true)
+        ResultTableModel(
+            listOf("player1", "itsf name 1", "player2", "itsf name 2", "combined", "p1 country", "p1 points", "p1 rank", "p1 status", "p2 country", "p2 points", "p2 rank", "p2 status"),
+            true
+        )
 
     private fun showRanking(category: String) {
         if (checkRankingLoaded()) {
@@ -132,24 +135,27 @@ object ITSFRankingApp {
             val model = emptyListResultModelSingles()
             listMatcher.matchPlayer(file, charset, category).forEach {
                 when (it.results.size) {
-                    0 -> model.addRow(listOf(it.playerName, null, null, null, "NOT_FOUND"))
+                    0 -> model.addRow(listOf(it.playerName, null, null, null, null, "NOT_FOUND"))
                     1 -> {
                         val player = it.results.single()
-                        model.addRow(listOf(it.playerName, player.name, player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                        model.addRow(listOf(it.playerName, player.name, player.country, player.rankings[category]?.points ?: 0, player.rankings[category]?.rank, "OK"))
                     }
 
-                    else -> model.addRow(listOf(it.playerName, null, null, null, "MULTIPLE_MATCHES"))
+                    else -> model.addRow(listOf(it.playerName, null, null, null, null, "MULTIPLE_MATCHES"))
                 }
             }
             model
         } else {
             val model = emptyListResultModelDoubles()
             listMatcher.matchTeam(file, charset, category).forEach { pwr ->
-                val list = mutableListOf<String?>(pwr.player1.playerName, pwr.player2.playerName)
+                val list = mutableListOf<Any?>(pwr.player1.playerName, pwr.player2.playerName)
                 val p1 = addPlayerToRow(list, category, pwr.player1)
                 val p2 = addPlayerToRow(list, category, pwr.player2)
+                val p1Points = p1?.pointsFor(category) ?: 0
+                val p2Points = p2?.pointsFor(category) ?: 0
                 list.add(1, p1?.name)
                 list.add(3, p2?.name)
+                list.add(4, p1Points + p2Points)
                 model.addRow(list)
             }
             model
@@ -158,20 +164,21 @@ object ITSFRankingApp {
         tabbedPane.selectedIndex = 1
     }
 
-    private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults): ITSFPlayer? {
+    private fun addPlayerToRow(list: MutableList<Any?>, category: Category, playerNameWithResults: PlayerNameWithResults): ITSFPlayer? {
         return when (playerNameWithResults.results.size) {
             0 -> {
-                list.addAll(listOf(null, null, "NOT_FOUND"))
+                list.addAll(listOf(null, null, null, "NOT_FOUND"))
                 null
             }
+
             1 -> {
                 val player = playerNameWithResults.results.single()
-                list.addAll(listOf(player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                list.addAll(listOf(player.country, player.rankings[category]?.points ?: 0, player.rankings[category]?.rank, "OK"))
                 player
             }
 
             else -> {
-                list.addAll(listOf(null, null, "MULTIPLE_MATCHES"))
+                list.addAll(listOf(null, null, null, "MULTIPLE_MATCHES"))
                 null
             }
         }
