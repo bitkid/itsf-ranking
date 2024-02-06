@@ -36,6 +36,8 @@ object ITSFRankingApp {
     private lateinit var itsfPlayers: ITSFPlayers
     lateinit var jFrame: JFrame
 
+    val version = getVersionFromJarFile()
+
 
     private val playerNameField = JTextField(50)
     private val itsfNoField = JTextField(50)
@@ -243,12 +245,18 @@ object ITSFRankingApp {
             } catch (ex: Exception) {
                 ex.printStackTrace()
             }
-            val frame = JFrame("ITSF Rankings")
+            val frame = JFrame("ITSF Rankings ($version)")
             frame.contentPane.add(createPanel(frame))
             frame.pack()
             frame.isResizable = false
             frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
             frame.isVisible = true
         }
+    }
+
+    private fun getVersionFromJarFile(): String {
+        val c = ITSFRankingApp.javaClass
+        val input = c.getResource('/' + c.getName().replace('.', '/') + ".class")
+        return "itsf-ranking-.*all\\.jar".toRegex().find(input!!.toString())?.groupValues?.first()?.split("-")?.get(2) ?: "DEV"
     }
 }
