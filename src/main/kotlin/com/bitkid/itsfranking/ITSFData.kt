@@ -19,6 +19,8 @@ data class ITSFPlayer(
     fun hasSeniorRankings(): Boolean {
         return rankings[Categories.seniorDoubles] != null || rankings[Categories.seniorSingles] != null || rankings[Categories.classicSenior] != null
     }
+
+    fun pointsFor(category: Category) = rankings[category]?.points ?: 0
 }
 
 data class PlayerNameWithResults(val playerName: String, val results: List<ITSFPlayer>)

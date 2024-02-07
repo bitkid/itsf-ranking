@@ -38,49 +38,64 @@ object ITSFRankingApp {
 
     val version = getVersionFromJarFile()
 
-
     private val playerNameField = JTextField(50)
     private val itsfNoField = JTextField(50)
 
-    private val jTable = JTable(emptyModel()).apply {
+    private val searchResultTable = JTable(emptySearchResultModel()).apply {
         cellSelectionEnabled = true
+        autoCreateRowSorter = true
     }
 
-    private val jTableList = JTable(emptyListResultModelSingles()).apply {
+    private val csvListTable = JTable(emptyCsvListModelSingles()).apply {
         cellSelectionEnabled = true
+        autoCreateRowSorter = true
     }
 
-    private val jTableRanking = JTable(emptyRankingModel()).apply {
+    private val rankingTable = JTable(emptyRankingModel()).apply {
         cellSelectionEnabled = true
+        autoCreateRowSorter = true
     }
 
     private val tabbedPane = JTabbedPane()
-
-
-    private fun emptyModel() = ResultTableModel(listOf("itsf no.", "name", "country") + Categories.all.map { it.targetAudience })
-
-    private fun emptyRankingModel() = ResultTableModel(listOf("itsf no.", "name", "country", "rank", "points"))
-
-    private fun emptyListResultModelSingles() = ResultTableModel(listOf("player", "itsf name", "country", "points", "status"), true)
-    private fun emptyListResultModelDoubles() =
-        ResultTableModel(listOf("player1", "itsf name 1", "player2", "itsf name 2", "p1 country", "p1 points", "p1 status", "p2 country", "p2 points", "p2 status"), true)
+    private fun emptySearchResultModel() = ResultTableModel(listOf("itsf no.", "name", "country") + Categories.all.map { it.targetAudience })
+    private fun emptyRankingModel() = ResultTableModel(listOf("rank", "name", "country", "itsf no.", "points"))
+    private fun emptyCsvListModelSingles() = ResultTableModel(listOf("player", "itsf name", "country", "points", "rank", "status"), true)
+    private fun emptyCsvListModelDoubles() = DoublesListModel(
+        listOf(
+            "player1",
+            "itsf name 1",
+            "player2",
+            "itsf name 2",
+            "combined",
+            "p1 country",
+            "p1 points",
+            "p1 rank",
+            "p1 status",
+            "p2 country",
+            "p2 points",
+            "p2 rank",
+            "p2 status"
+        )
+    )
 
     private fun showRanking(category: String) {
-        if (checkRankingLoaded()) {
+        if (checkITSFDataLoaded()) {
             val cat = Categories.all.single { it.targetAudience == category }
             val players = itsfPlayers.getSortedRanking(cat)
             val m = emptyRankingModel()
             players.forEach {
                 val itsfRank = it.rankings.getValue(cat)
-                val props = listOf(it.licenseNumber, it.name, it.country, itsfRank.rank.toString(), itsfRank.points.toString())
+                listOf("rank", "name", "country", "itsf no.", "points")
+                val props = listOf(itsfRank.rank, it.name, it.country, it.licenseNumber, itsfRank.points)
                 m.addRow(props)
             }
-            jTableRanking.model = m
+            rankingTable.rowSorter = null
+            rankingTable.model = m
             tabbedPane.selectedIndex = 2
         }
     }
 
-    private fun checkRankingLoaded(): Boolean {
+    private fun checkITSFDataLoaded(): Boolean {
         if (!this::itsfPlayers.isInitialized) {
             JOptionPane.showMessageDialog(jFrame, "Load rankings first!", "Info", JOptionPane.INFORMATION_MESSAGE)
             return false
@@ -89,95 +104,99 @@ object ITSFRankingApp {
     }
 
     private fun modelWithPlayers(players: Collection<ITSFPlayer>): ResultTableModel {
-        val model = emptyModel()
-        players.forEach { addPlayerToModel(model, it) }
+        val model = emptySearchResultModel()
+        players.forEach { addPlayerToSearchResultModel(model, it) }
         return model
     }
 
-    private suspend fun loadRanking(s: String) {
+    private suspend fun loadITSFDATA(s: String) {
         // val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000).readTestRankings()
         val rankings = ITSFPlayerDatabaseReader(topXPlayers = 2000, tour = s).readRankings()
         itsfPlayers = ITSFPlayers(rankings)
     }
 
-    private fun searchLicenseNumber() {
-        if (checkRankingLoaded()) {
+    private fun searchForLicenseNumber() {
+        if (checkITSFDataLoaded()) {
             val text = itsfNoField.text
             if (!text.isNullOrBlank()) {
                 val player = itsfPlayers.getPlayer(text)
+                searchResultTable.rowSorter = null
                 if (player == null)
-                    jTable.model = emptyModel()
+                    searchResultTable.model = emptySearchResultModel()
                 else
-                    jTable.model = modelWithPlayers(listOf(player))
+                    searchResultTable.model = modelWithPlayers(listOf(player))
                 tabbedPane.selectedIndex = 0
             }
         }
     }
 
-    private fun searchByName() {
-        if (checkRankingLoaded()) {
+    private fun searchForName() {
+        if (checkITSFDataLoaded()) {
             val text = playerNameField.text
             if (!text.isNullOrBlank()) {
                 val player = itsfPlayers.find(text, true)
-                jTable.model = modelWithPlayers(player)
+                searchResultTable.rowSorter = null
+                searchResultTable.model = modelWithPlayers(player)
                 tabbedPane.selectedIndex = 0
             }
         }
     }
 
 
-    private fun loadFile(file: File, charset: Charset, category: Category) {
+    private fun loadCsvFile(file: File, charset: Charset, category: Category) {
         val listMatcher = ListMatcher(itsfPlayers)
         val model = if (category.type == CompetitionType.SINGLES) {
-            val model = emptyListResultModelSingles()
+            val model = emptyCsvListModelSingles()
             listMatcher.matchPlayer(file, charset, category).forEach {
                 when (it.results.size) {
-                    0 -> model.addRow(listOf(it.playerName, null, null, null, "NOT_FOUND"))
+                    0 -> model.addRow(listOf(it.playerName, null, null, null, null, "NOT_FOUND"))
                     1 -> {
                         val player = it.results.single()
-                        model.addRow(listOf(it.playerName, player.name, player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                        model.addRow(listOf(it.playerName, player.name, player.country, player.rankings[category]?.points ?: 0, player.rankings[category]?.rank, "OK"))
                     }
-
-                    else -> model.addRow(listOf(it.playerName, null, null, null, "MULTIPLE_MATCHES"))
+                    else -> model.addRow(listOf(it.playerName, null, null, null, null, "MULTIPLE_MATCHES"))
                 }
             }
             model
         } else {
-            val model = emptyListResultModelDoubles()
+            val model = emptyCsvListModelDoubles()
             listMatcher.matchTeam(file, charset, category).forEach { pwr ->
-                val list = mutableListOf<String?>(pwr.player1.playerName, pwr.player2.playerName)
+                val list = mutableListOf<Any?>(pwr.player1.playerName, pwr.player2.playerName)
                 val p1 = addPlayerToRow(list, category, pwr.player1)
                 val p2 = addPlayerToRow(list, category, pwr.player2)
+                val p1Points = p1?.pointsFor(category) ?: 0
+                val p2Points = p2?.pointsFor(category) ?: 0
                 list.add(1, p1?.name)
                 list.add(3, p2?.name)
+                list.add(4, p1Points + p2Points)
                 model.addRow(list)
             }
             model
         }
-        jTableList.model = model
+        csvListTable.rowSorter = null
+        csvListTable.model = model
         tabbedPane.selectedIndex = 1
     }
 
-    private fun addPlayerToRow(list: MutableList<String?>, category: Category, playerNameWithResults: PlayerNameWithResults): ITSFPlayer? {
+    private fun addPlayerToRow(list: MutableList<Any?>, category: Category, playerNameWithResults: PlayerNameWithResults): ITSFPlayer? {
         return when (playerNameWithResults.results.size) {
             0 -> {
-                list.addAll(listOf(null, null, "NOT_FOUND"))
+                list.addAll(listOf(null, null, null, "NOT_FOUND"))
                 null
             }
             1 -> {
                 val player = playerNameWithResults.results.single()
-                list.addAll(listOf(player.country, player.rankings[category]?.points?.toString() ?: "0", "OK"))
+                list.addAll(listOf(player.country, player.rankings[category]?.points ?: 0, player.rankings[category]?.rank, "OK"))
                 player
             }
-
             else -> {
-                list.addAll(listOf(null, null, "MULTIPLE_MATCHES"))
+                list.addAll(listOf(null, null, null, "MULTIPLE_MATCHES"))
                 null
             }
         }
     }
 
-    private fun addPlayerToModel(model: ResultTableModel, it: ITSFPlayer) {
+    private fun addPlayerToSearchResultModel(model: ResultTableModel, it: ITSFPlayer) {
         val ranks = Categories.all.map { c ->
             val r = it.rankings[c]
             if (r == null)
@@ -190,22 +209,22 @@ object ITSFRankingApp {
     }
 
 
-    private fun createPanel(frame: JFrame): JPanel {
+    private fun createMainPanel(frame: JFrame): JPanel {
         jFrame = frame
         val panel = JPanel(MigLayout("wrap 2"))
 
         panel.add(JLabel("Load ITSF Rankings"))
-        panel.add(LoadITSFDataPanel { loadRanking(it) }, "growx")
+        panel.add(LoadITSFDataPanel { loadITSFDATA(it) }, "growx")
 
         val searchAction: Action = object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent) {
-                searchByName()
+                searchForName()
             }
         }
 
         val searchLicenseAction: Action = object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent) {
-                searchLicenseNumber()
+                searchForLicenseNumber()
             }
         }
 
@@ -225,13 +244,13 @@ object ITSFRankingApp {
         panel.add(JButton("Search").apply { addActionListener(searchLicenseAction) }, "growx")
 
         panel.add(JLabel("Upload player list"))
-        panel.add(LoadCsvPanel(::loadFile, ::checkRankingLoaded), "growx")
+        panel.add(LoadCsvPanel(::loadCsvFile, ::checkITSFDataLoaded), "growx")
 
-        panel.add(JLabel("Results"))
+        panel.add(JLabel("Data"))
 
-        tabbedPane.addTab("Search results", JScrollPane(jTable))
-        tabbedPane.addTab("Player list", JScrollPane(jTableList))
-        tabbedPane.addTab("Rankings", JScrollPane(jTableRanking))
+        tabbedPane.addTab("Search results", JScrollPane(searchResultTable))
+        tabbedPane.addTab("Player list", JScrollPane(csvListTable))
+        tabbedPane.addTab("Rankings", JScrollPane(rankingTable))
         panel.add(tabbedPane, "growx, height :400:")
 
         return panel
@@ -246,7 +265,7 @@ object ITSFRankingApp {
                 ex.printStackTrace()
             }
             val frame = JFrame("ITSF Rankings ($version)")
-            frame.contentPane.add(createPanel(frame))
+            frame.contentPane.add(createMainPanel(frame))
             frame.pack()
             frame.isResizable = false
             frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
