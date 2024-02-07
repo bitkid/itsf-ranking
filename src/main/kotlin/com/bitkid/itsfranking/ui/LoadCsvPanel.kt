@@ -4,10 +4,8 @@ import com.bitkid.itsfranking.Categories
 import com.bitkid.itsfranking.Category
 import com.bitkid.itsfranking.ITSFRankingApp
 import com.bitkid.itsfranking.showLoadingDialog
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.swing.Swing
 import net.miginfocom.swing.MigLayout
 import java.io.File
 import java.nio.charset.Charset
@@ -34,11 +32,18 @@ class LoadCsvPanel(private val load: (File, Charset, Category) -> Unit, private 
                     val r = fileChooser.showOpenDialog(ITSFRankingApp.jFrame)
                     if (r == JFileChooser.APPROVE_OPTION) {
                         val dialog = showLoadingDialog()
-                        currentDirectory = fileChooser.selectedFile.parentFile
-                        GlobalScope.launch(Dispatchers.IO) {
+                        val currentFile = fileChooser.selectedFile
+                        currentDirectory = currentFile.parentFile
+                        val job = GlobalScope.async(Dispatchers.IO) {
+                            load(
+                                currentFile,
+                                Charset.forName(charsetSelect.selectedItem!!.toString()),
+                                Categories.all.single { it.name == category.selectedItem!! }
+                            )
+                        }
+                        GlobalScope.launch(Dispatchers.Swing) {
                             try {
-                                val file = fileChooser.selectedFile
-                                load(file, Charset.forName(charsetSelect.selectedItem!!.toString()), Categories.all.single { it.name == category.selectedItem!! })
+                                job.await()
                             } catch (e: Exception) {
                                 dialog.dispose()
                                 JOptionPane.showMessageDialog(
