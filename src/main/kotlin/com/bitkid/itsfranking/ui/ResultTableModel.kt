@@ -9,8 +9,14 @@ open class ResultTableModel(columns: List<String>, private val editable: Boolean
     }
 
     override fun getColumnClass(c: Int): Class<*> {
-        val javaClass = getValueAt(0, c).javaClass
-        return javaClass
+        // try to find a value for the given column
+        0.until(rowCount).forEach {
+            val javaClass = getValueAt(it, c)?.javaClass
+            if (javaClass != null)
+                return javaClass
+        }
+        // nothing found so just return string
+        return String::class.java
     }
 }
 

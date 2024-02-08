@@ -11,14 +11,16 @@ The latest release can always be found here https://github.com/bitkid/itsf-ranki
 ### Features
 
 - downloads the ranking for the chosen tour from the ITSF page (top 2000 player in every category)
-- you can look at the rankings and copy them in an excel friendly way
+- you can look at the rankings and copy them in an Excel friendly way
 - you can search by ITSF license number
 - you can search for player names (phonetic, string part matching)
 - you can upload text files (for singles 1 player per line for doubles 2 players per line separated by `;`) and the app tries to match it with the current ranking
+- you can search for missing players or players with multiple matches and complete the list by providing points manually
+- columns can be sorted by clicking on them, which gives you a seeding
 
 ### Support
 
-There is no support whatsoever. You can write issues and if i have time i might fix them. But i always accept PRs!
+There is no support whatsoever. You can write issues and if I have time I might fix them. But I always accept PRs!
 
 ### Development
 
